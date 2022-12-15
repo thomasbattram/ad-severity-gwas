@@ -8,3 +8,5 @@ As with the other cohorts, the order of analysis is:
 2. Extract and QC phenotype data - [`phenotype-extraction`](phenotype-extraction) 
 3. Run the GWAS 
 
+All `data` folders will not be tracked, and should be moved to bluecrystal/bluepebble via `sftp`. 
+
