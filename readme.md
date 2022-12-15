@@ -6,5 +6,5 @@ GWAS will be run across multiple cohorts and these results will be meta-analysed
 2. Extract and QC phenotype data
 3. Run the GWAS 
 
-Scripts that might be common to all cohorts (e.g. GWAS script) will be found in [`common-scripts`].
+Scripts that might be common to all cohorts (e.g. GWAS script) will be found in [`common-scripts`]().
 
