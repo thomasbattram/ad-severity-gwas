@@ -12,17 +12,21 @@ library(tidyverse)
 ## args
 args <- commandArgs(trailingOnly = TRUE)
 id_file <- args[1]
-phototherapy_file <- args[2]
-treatments_file <- args[3]
-icd10_file <- args[4]
-icd9_file <- args[5]
-icd10_all_file <- args[6]
-sr_file <- args[7]
-count_outfile <- args[8]
-data_outfile <- args[9]
+geno_ids_file <- args[2]
+diag_ad_cases_file <- args[3]
+phototherapy_file <- args[4]
+treatments_file <- args[5]
+icd10_file <- args[6]
+icd9_file <- args[7]
+icd10_all_file <- args[8]
+sr_file <- args[9]
+count_outfile <- args[10]
+data_outfile <- args[11]
 
 ## manual args
 id_file <- "data/ukb-pheno/ids.txt"
+geno_ids_file <- "../geno-qc/data/geno-include-ids.txt"
+diag_ad_cases_file <- "data/gp-diag-ad-case-eids.txt.uniq"
 phototherapy_file <- "data/ukb-pheno/phototherapy.txt"
 treatments_file <- "data/ukb-pheno/treatments.txt"
 icd10_file <- "data/ukb-pheno/icd10.txt"
@@ -32,11 +36,13 @@ sr_file <- "data/ukb-pheno/selfreport.txt"
 summary_outfile <- "data/severity-counts.tsv" 
 data_outfile <- "data/case-pheno.tsv"
 
-gp_record_file <- "data/ukb-pheno/gp-records.txt"
-gp_record <- fread(gp_record_file)
+# gp_record_file <- "data/ukb-pheno/gp-records.txt"
+# gp_record <- fread(gp_record_file)
 
 ## data
 ids <- fread(id_file)
+geno_ids <- readLines(geno_ids_file)
+diag_ad <- readLines(diag_ad_cases_file)
 pt_dat <- fread(phototherapy_file)
 treat_dat <- fread(treatments_file)
 icd10_dat <- fread(icd10_file)
@@ -88,10 +94,18 @@ count_pheno <- function(ids, dat, variables)
 get_n <- function(count_dat, variables)
 {
 	## get samplesize for each and total phototherapy samplesize
-	n_dat <- map_dfr(variables, function(v) {
-		tibble(variable = as.character(v), n = sum(count_dat[[as.character(v)]] != 0))
+	all_ids <- lapply(variables, function(v) {
+		count_dat[count_dat[[as.character(v)]] != 0, "f.eid", drop=T]
 	})
-	total <- tibble(variable = "total", n = sum(n_dat$n))
+	names(all_ids) <- as.character(variables)
+	n_dat <- map_dfr(variables, function(v) {
+		cv <- as.character(v)
+		tibble(variable = cv, n = length(all_ids[[cv]]))
+	})
+	uniq_ids <- unique(unlist(all_ids))
+	total <- tibble(variable = c("unique_cases", "non_unique_cases"), 
+					n = c(length(uniq_ids), sum(n_dat$n))
+					)
 
 	n_dat <- bind_rows(n_dat, total)
 	return(n_dat)
@@ -119,8 +133,8 @@ pt_dat <- cbind(ids, pt_dat)
 s12_count <- apply(pt_dat, 1, function(x) {
 	sum(x == "S12", na.rm=T)
 })
-s12_count
-
+head(s12_count)
+sum(s12_count)
 rm(pt_dat)
 
 # ------------------------------------------------------------------------
@@ -212,10 +226,14 @@ ecz_meta <- tibble(field_id = 20002,
 ecz_sr_code <- c(1452)
 ecz_count <- count_pheno(ids, sr_dat, ecz_sr_code)
 
+gp_rec_dat <- tibble(f.eid = ecz_count$f.eid) %>%
+			  	mutate(gp_diagnosis = ifelse(f.eid %in% diag_ad, 1, 0)) 
+
 ad_dat <- left_join(ad_count, ecz_count) %>%
+	left_join(gp_rec_dat) %>%
 	mutate(ad = if_else(if_any(-f.eid, ~ . > 0), 1, 0))
 
-ad_n <- get_n(ad_dat, c(ad_codes, ecz_sr_code))
+ad_n <- get_n(ad_dat, c(ad_codes, ecz_sr_code, "gp_diagnosis"))
 
 ad_ids <- ad_dat %>%
 	dplyr::filter(ad == 1) %>%

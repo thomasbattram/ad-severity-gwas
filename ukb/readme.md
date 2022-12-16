@@ -10,3 +10,4 @@ As with the other cohorts, the order of analysis is:
 
 All `data` folders will not be tracked, and should be moved to bluecrystal/bluepebble via `sftp`. 
 
+For the phenotype data, 

@@ -48,5 +48,5 @@ cat ${rd}/data.45723.tab | awk ' BEGIN { first = 2189; last = 2324 }
 cat ${rd}/data.45723.tab | awk ' BEGIN { first = 6145; last = 6147 }
 { for (i = first; i < last; i++) { printf("%s ", $i) } print $last }' > gp-records.txt
 
-# awk '{print $1}' gp_scripts.txt > gp_scripts_ids.txt
-# awk '{!seen[$0]++};END{for(i in seen) if(seen[i]==1)print i}' gp_scripts_ids.txt > gp_scripts_ids_unique.txt
+## GP scripts
+awk '{print $1}' gp_scripts.txt > gp_scripts_ids.txt
