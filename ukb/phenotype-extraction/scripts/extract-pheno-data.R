@@ -56,11 +56,6 @@ uniq_gp_ids <- unique(gp_scripts_ids$eid)
 
 sum(ids$f.eid %in% uniq_gp_ids)
 
-## To do (2022-11-07):
-## 1. Finalise severe definition and implement that here
-## 2. Get all eczema cases (including non-severe)
-## 3. Write up meta-data table -- i.e. how codes match to variable names etc.
-
 # ------------------------------------------------------------------------
 # Functions to count variables within UKB data
 # ------------------------------------------------------------------------
