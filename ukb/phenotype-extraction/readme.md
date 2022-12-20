@@ -14,5 +14,6 @@ bash scripts/extract-gp-diag-ad.sh "${V2_LIST}" "${CTV3_LIST}" "${GP_FILE}" "${O
 ```
 
 1. get-ukb-vars.sh
-2. extract-pheno-data.R
+2. extract-ad-cases.R
 3. simplify-gp-scripts.sh
+4. extract-severity-cases.R
