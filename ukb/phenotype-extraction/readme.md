@@ -1,19 +1,10 @@
 # Phenotype extraction
 
-To submit extraction of GP diagnosed AD cases:
+## Script order
 
-1. 
-
-``` bash
-SCR_DIR="/user/work/tb13101/ad-severity-gwas/ukb/pheno-extraction" # scratch directory - i.e. /user/work/...
-V2_LIST=${SCR_DIR}/data/ukb-pheno/AD_v2.list
-CTV3_LIST=${SCR_DIR}/data/ukb-pheno/AD_ctv3.v2.uniq.list
-GP_FILE=${SCR_DIR}/data/ukb-pheno/gp_clinical.txt
-OUT=${SCR_DIR}/data/gp-diag-ad-case-eids.txt
-bash scripts/extract-gp-diag-ad.sh "${V2_LIST}" "${CTV3_LIST}" "${GP_FILE}" "${OUT}"
-```
-
-1. get-ukb-vars.sh
-2. extract-ad-cases.R
-3. simplify-gp-scripts.sh
-4. extract-severity-cases.R
+1. [`extract-gp-diag-ad.sh`](scripts/extract-gp-diag-ad.sh)
+2. [`get-ukb-vars.sh`](scripts/get-ukb-vars.sh)
+3. [`extract-ad-cases.R`](scripts/extract-ad-cases.R)
+4. [`simplify-gp-scripts.sh`](scripts/simplify-gp-scripts.sh)
+	+ Note: Before moving onto the next step, the GP prescription data will need to be manually sorted to extract prescriptions of systemics, corticosteroids, and emollients
+5. [`extract-severe-cases.R`](scripts/extract-severe-cases.R)
