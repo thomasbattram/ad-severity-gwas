@@ -12,27 +12,23 @@ library(tidyverse)
 ## args
 args <- commandArgs(trailingOnly = TRUE)
 id_file <- args[1]
-geno_ids_file <- args[2]
-diag_ad_cases_file <- args[3]
+ad_id_file <- args[2]
+gp_scripts_id_file <- args[3]
 phototherapy_file <- args[4]
 treatments_file <- args[5]
 icd10_file <- args[6]
 icd9_file <- args[7]
-icd10_all_file <- args[8]
-sr_file <- args[9]
-count_outfile <- args[10]
-data_outfile <- args[11]
+count_outfile <- args[8]
+data_outfile <- args[9]
 
 ## manual args
 id_file <- "data/ukb-pheno/ids.txt"
-geno_ids_file <- "../geno-qc/data/geno-include-ids.txt"
-diag_ad_cases_file <- "data/gp-diag-ad-case-eids.txt.uniq"
+ad_id_file <- "data/ad-ids.txt"
+gp_scripts_id_file <- "data/ukb-pheno/gp_scripts_ids.txt" ## CHANGE ME
 phototherapy_file <- "data/ukb-pheno/phototherapy.txt"
 treatments_file <- "data/ukb-pheno/treatments.txt"
 icd10_file <- "data/ukb-pheno/icd10.txt"
 icd9_file <- "data/ukb-pheno/icd9.txt"
-icd10_all_file <- "data/ukb-pheno/icd10-allcodes.txt"
-sr_file <- "data/ukb-pheno/selfreport.txt"
 summary_outfile <- "data/severity-counts.tsv" 
 data_outfile <- "data/case-pheno.tsv"
 
@@ -41,20 +37,13 @@ data_outfile <- "data/case-pheno.tsv"
 
 ## data
 ids <- fread(id_file)
-geno_ids <- readLines(geno_ids_file)
-diag_ad <- readLines(diag_ad_cases_file)
+ad_ids <- readLines(ad_id_file)
 pt_dat <- fread(phototherapy_file)
 treat_dat <- fread(treatments_file)
 icd10_dat <- fread(icd10_file)
 icd9_dat <- fread(icd9_file)
-icd10_all_dat <- fread(icd10_all_file)
-sr_dat <- fread(sr_file)
+gp_scripts_ids <- readLines(gp_scripts_id_file)
 ## NOTE: currently these files = ~2Gb 
-
-gp_scripts_ids <- fread("data/ukb-pheno/gp_scripts_ids.txt")
-uniq_gp_ids <- unique(gp_scripts_ids$eid)
-
-sum(ids$f.eid %in% uniq_gp_ids)
 
 # ------------------------------------------------------------------------
 # Functions to count variables within UKB data
@@ -204,111 +193,40 @@ icd9_count <- count_pheno(ids, icd9_dat, icd9_codes)
 icd9_n <- get_n(icd9_count, icd9_codes)
 
 # ------------------------------------------------------------------------
-# All AD cases
+# GP scripts
 # ------------------------------------------------------------------------
 
-ad_meta <- tibble(field_id = 41270, 
-				  code = c("L20", "L208", "L209"), 
-				  meaning = c("Atopic dermatitis", "Other atopic dermatitis", "Atopic dermatitis, unspecified"))
+## This is done in another script, just putting it into the same format as the others
 
-ad_codes <- c("L20", "L208", "L209")
-ad_count <- count_pheno(ids, icd10_all_dat, ad_codes)
+# gp_scripts_ids <- sample(ids$f.eid, 1000) # TESTER
 
-ecz_meta <- tibble(field_id = 20002, 
-				   code = 1452, 
-				   meaning = c("eczema/dermatitis"))
-
-ecz_sr_code <- c(1452)
-ecz_count <- count_pheno(ids, sr_dat, ecz_sr_code)
-
-gp_rec_dat <- tibble(f.eid = ecz_count$f.eid) %>%
-			  	mutate(gp_diagnosis = ifelse(f.eid %in% diag_ad, 1, 0)) 
-
-ad_dat <- left_join(ad_count, ecz_count) %>%
-	left_join(gp_rec_dat) %>%
-	mutate(ad = if_else(if_any(-f.eid, ~ . > 0), 1, 0))
-
-ad_n <- get_n(ad_dat, c(ad_codes, ecz_sr_code, "gp_diagnosis"))
-
-ad_ids <- ad_dat %>%
-	dplyr::filter(ad == 1) %>%
-	pull(f.eid) %>%
-	unique() %>%
-	as.character()
-
-writeLines(ad_ids, con = "data/ad-ids.txt")
+gps_count <- tibble(f.eid = ids$f.eid) %>%
+			  	mutate(gp_diagnosis = ifelse(f.eid %in% gp_scripts_ids, 1, 0)) 
 
 # ------------------------------------------------------------------------
 # Combine data and write it out
 # ------------------------------------------------------------------------
 
 ## Quick combination of numbers 
-comb_count <- list(pt_count, sys_treat_count, icd10_count, icd9_count) %>%
+comb_count <- list(pt_count, sys_treat_count, icd10_count, icd9_count, gps_count) %>%
 	reduce(left_join) %>%
+	dplyr::filter(f.eid %in% ad_ids) %>%
 	mutate(severe = if_else(if_any(-f.eid, ~ . > 0), 1, 0)) # asking if any are present then == 1, otherwise 0
 
-comb_n <- list(pt_n, sys_n, icd10_n, icd9_n) %>%
-	bind_rows() %>%
-	dplyr::filter(variable != "total")
-total <- tibble(variable = "total", n = sum(comb_n$n))
-comb_n <- bind_rows(comb_n, total) ## some people will have multiple procedures/therapies
-sum(comb_count$severe) ## True number of severe cases -- NOPE
-## What I need is to verify what are eczema cases!
+comb_vars <- c(photo_vars, sys_treat_vars, icd10_codes, icd9_codes, "gp_diagnosis")
+comb_n <- get_n(comb_count, comb_vars)
 
-## CASES SHIT - NEED TO TIDY THIS UP SOOOOO BADLY
-out_dat <- comb_count %>%
-	dplyr::select(f.eid, severe) %>%
-	left_join(ad_dat[, c("f.eid", "ad")]) %>%
-	dplyr::filter(ad == 1)
-
-sum(out_dat$severe)
-nrow(out_dat)/100
-
-## all count
-all_count <- comb_count %>%
-	dplyr::filter(f.eid %in% out_dat$f.eid) %>%
-	left_join(ad_dat, by = c("f.eid" = "f.eid")) %>%
-	dplyr::select(-severe, -ad)
-
-## Need to indicate where icd10 codes are primary diagnosis 
-colnames(all_count)[grepl("\\.x", colnames(all_count))] <- gsub("\\.x",
-																"_primary_diagnosis", 
-																colnames(all_count)[grepl("\\.x", colnames(all_count))])
-
-colnames(all_count)[grepl("\\.y", colnames(all_count))] <- gsub("\\.y",
-																"_any_diagnosis", 
-																colnames(all_count)[grepl("\\.y", colnames(all_count))])
-
-all_n <- get_n(all_count, colnames(all_count)[-1])
-
-all_meta <- list(pt_meta, sys_meta, icd10_meta, icd9_meta, ad_meta, ecz_meta) %>%
+comb_meta <- list(pt_meta, sys_meta, icd10_meta, icd9_meta) %>%
 	map(mutate_all, as.character) %>%
-	bind_rows() %>%
-	left_join(all_n, by = c("code" = "variable"))
+	bind_rows()
+	
+comb_meta_out <- comb_n %>%
+	left_join(comb_meta, by = c("variable" = "code")) %>%
+	dplyr::select(variable, n, ukb_code_meaning = meaning, ukb_field_id = field_id)
 
-l20_n <- all_n[grep("L20", all_n$variable),]
-l20_n$field_id <- c(rep("41202", 3), rep("41270", 3))
-l20_n$variable <- gsub("_.*", "", l20_n$variable)
-l20_n <- l20_n %>%
-	left_join(dplyr::select(all_meta, field_id, variable = code, meaning)) 
-colnames(l20_n)[1] <- "code"
-
-all_meta <- all_meta[!is.na(all_meta$n),] %>%
-	bind_rows(l20_n)
-
-all_meta %>% as.data.frame
-
-write.table(all_meta, file = summary_outfile, col.names = T, row.names = F, quote = F, sep = "\t")
+write.table(comb_meta_out, file = summary_outfile, col.names = T, row.names = F, quote = F, sep = "\t")
 
 ## Combination with corticosteroids
-
-## WHAT WE WANT OUTPUT FOR META-DATA
-
-## 
-## AD CASES | N Severe
-
-## LIMITED TO AD CASES
-# UKB field_id | UKB code | description | N | 
 
 
 
