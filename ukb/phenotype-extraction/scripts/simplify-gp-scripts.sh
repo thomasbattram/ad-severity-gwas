@@ -17,6 +17,9 @@ awk -F"\t" 'BEGIN{OFS="\t"}{if(F==1){a[$1]=$1}if(F==2){
  }}' F=1 ${PHENO} F=2 ${GPSCRIPTS} \
 > ${OUTPREFIX}_inclusive.txt
 
+## output missing data
+grep "missing" ${OUTPREFIX}_inclusive.txt > ${OUTPREFIX}_missing_drug.txt
+
 sed 's/ /_/g' ${OUTPREFIX}_inclusive.txt \
 > ${OUTPREFIX}_inclusive.nospace.txt
 
@@ -49,9 +52,13 @@ awk 'BEGIN{n="total_count"; drug="drug"; code2="read_2_concat"; code3="bnf_code_
   code3=$3
   code4=$4
   drug=$5
+  drug_concat=substr($5,1,20)
  }
- }END{print n,code2,code3,code4,drug}' ${OUTPREFIX}_inclusive.uniq \
+ }END{print n,code2,code3,code4,drug,drug_concat}' ${OUTPREFIX}_inclusive.uniq \
 > ${OUTPREFIX}_inclusive.uniq.grouped
+
+awk -F"\t" '{print $0 (NR>1 ? FS substr($5,1,20) : "")}' ${OUTPREFIX}_inclusive.uniq.grouped \
+> ${OUTPREFIX}_inclusive.uniq.grouped.concat
 
 rm ${OUTPREFIX}_inclusive.nodose.txt ${OUTPREFIX}_inclusive.nospace.txt \
  ${OUTPREFIX}_inclusive.sorted ${OUTPREFIX}_inclusive.uniq
