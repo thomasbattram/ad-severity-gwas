@@ -14,17 +14,20 @@ args <- commandArgs(trailingOnly = TRUE)
 id_file <- args[1]
 ad_id_file <- args[2]
 treatments_file <- args[3]
-outfile <- args[4]
+treatments_code_file <- args[4]
+outfile <- args[5]
 
 ## manual args
 id_file <- "data/ukb-pheno/ids.txt"
 ad_id_file <- "data/ad-ids.txt"
 treatments_file <- "data/ukb-pheno/treatments.txt"
-outfile <- "data/ukb-pheno/ad-sr-prescription-data.xlsx"
+treatments_code_file <- "data/ukb-pheno/coding4.tsv" # need to download data coding 4: https://biobank.ndph.ox.ac.uk/showcase/coding.cgi?id=4
+outfile <- "data/ukb-pheno/ad-sr-meds-ukb.xlsx"
 
 ## data
 ids <- fread(id_file)
 ad_ids <- readLines(ad_id_file)
+treat_codes <- read_tsv(treatments_code_file)
 treat_dat <- fread(treatments_file)
 
 # ------------------------------------------------------------------------
@@ -39,7 +42,7 @@ treat_dat <- fread(treatments_file)
 #' @return tibble with a count of each variable across each individual
 count_pheno <- function(ids, dat, variables)
 {
-	dat <- cbind(ids, dat)
+	# dat <- cbind(ids, dat)
 	count_dat <- tibble(f.eid = dat$f.eid)
 
 	for (v in variables) {
@@ -68,12 +71,12 @@ get_n <- function(count_dat, variables)
 		cv <- as.character(v)
 		tibble(variable = cv, n = length(all_ids[[cv]]))
 	})
-	uniq_ids <- unique(unlist(all_ids))
-	total <- tibble(variable = c("unique_cases", "non_unique_cases"), 
-					n = c(length(uniq_ids), sum(n_dat$n))
-					)
+	# uniq_ids <- unique(unlist(all_ids))
+	# total <- tibble(variable = c("unique_cases", "non_unique_cases"), 
+	# 				n = c(length(uniq_ids), sum(n_dat$n))
+	# 				)
 
-	n_dat <- bind_rows(n_dat, total)
+	# n_dat <- bind_rows(n_dat, total)
 	return(n_dat)
 }
 
@@ -89,3 +92,45 @@ get_n <- function(count_dat, variables)
 # 4. run the get_n function across all codes (may need to alter function a little)
 # 5. edit tibble so columns look like those stated above
 # 6. output it as an excel spreadsheet
+
+## Limit to AD cases only
+td_filt <- cbind(ids, treat_dat) %>%
+	dplyr::filter(f.eid %in% ad_ids)
+
+## Extract all unique codes
+cols <- colnames(td_filt)[colnames(td_filt) != "f.eid"]
+all_vals <- lapply(cols, function(col) {
+	unique(td_filt[[col]])
+})
+val_classes <- unlist(lapply(all_vals, class))
+is.na(all_vals[val_classes == "logical"]) # all "logical" classes are NA
+table(val_classes) # the rest of the classes are "integer" so should be fine to put them all together and select unique values
+all_vals_vec <- unique(unlist(all_vals))
+all_vals_vec <- all_vals_vec[!is.na(all_vals_vec)]
+length(all_vals_vec) # 2275 unique treatments reported
+
+## run count_pheno
+start_time <- proc.time()
+treat_count <- count_pheno(ids, td_filt, all_vals_vec)
+time_taken <- proc.time() - start_time
+time_taken # ~20 mins
+
+## run get_n
+treat_n <- get_n(treat_count, all_vals_vec)
+
+## edit tibble
+treat_codes$coding <- as.character(treat_codes$coding)
+all(treat_n$variable %in% treat_codes$coding) # sanity check!
+
+out_tib <- treat_n %>%
+	dplyr::rename(coding = variable) %>%
+	left_join(treat_codes) %>%
+	dplyr::select(code = coding, n, drug = meaning) %>%
+	mutate(INCLUDE_FINAL = "", SYSTEMIC = "", `Eczema specific treatment?` = "", 
+		   `Non-eczema-specific anti-inflammatory topicals (eg topical steroids)` = "",
+		    Emollients = "",  Comments = "") %>%
+	arrange(desc(n))
+
+## write it out as a spreadsheet
+write.xlsx(out_tib, file = outfile)
+
