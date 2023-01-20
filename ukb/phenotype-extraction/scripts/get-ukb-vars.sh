@@ -8,7 +8,7 @@
 
 ## rdsf dir
 rd='/projects/MRC-IEU/research/data/ukbiobank/phenotypic/applications/15147/released/2021-04-22/data'
-wd='/user/work/tb13101/severity-gwas/data/ukb-pheno'
+wd='data/ukb-pheno'
 cd ${wd}
 
 ## get ids
@@ -24,6 +24,11 @@ less -S phototherapy.txt
 ## Get columns 2325-2516
 cat ${rd}/data.45723.tab | awk ' BEGIN { first = 2325; last = 2516 }
 { for (i = first; i < last; i++) { printf("%s ", $i) } print $last }' > treatments.txt
+
+## topical corticosteroids and systematic treatments - under same field ID = 137
+## Get columns 417-420
+cat ${rd}/data.45723.tab | awk ' BEGIN { first = 417; last = 420 }
+{ for (i = first; i < last; i++) { printf("%s ", $i) } print $last }' > treatments_num.txt
 
 ## Hospital admission for eczema - eczema needs to be primary diagnosis field ID = 41202 and 41203
 ## Get columns 4467-4532 (ICD 10 codes)
@@ -49,4 +54,20 @@ cat ${rd}/data.45723.tab | awk ' BEGIN { first = 6145; last = 6147 }
 { for (i = first; i < last; i++) { printf("%s ", $i) } print $last }' > gp-records.txt
 
 ## GP scripts
-awk '{print $1}' gp_scripts.txt > gp_scripts_ids.txt
+AD_IDS=../ad-ids.txt
+GPSCRIPTS=gp_scripts.txt
+OUTPREFIX=gp_scripts_ecz
+
+awk -F"\t" 'BEGIN{OFS="\t"}{if(F==1){a[$1]=$1}if(F==2){
+ if($1 in a){
+  if($4==""){$4="-"}
+  if($5==""){$5="-"}
+  if($6==""){$6="-"}
+  if($7==""){$7="[missing]"}
+  print $1,$3,$4,$5,$6,$7}
+ }}' F=1 ${AD_IDS} F=2 ${GPSCRIPTS} \
+> ${OUTPREFIX}_inclusive.txt
+
+## GP scripts IDs
+GP_IDS_OUT=gp_scripts_ids.txt
+awk '{print $1}' ${GPSCRIPTS} | sort -u > ${GP_IDS_OUT}
