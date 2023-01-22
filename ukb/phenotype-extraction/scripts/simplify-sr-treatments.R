@@ -80,18 +80,13 @@ get_n <- function(count_dat, variables)
 	return(n_dat)
 }
 
+# ------------------------------------------------------------------------
+# Extract the self-report data
+# ------------------------------------------------------------------------
 
 ## What we want out is a spreadsheet with these columns:
 # code | n | drug | INCLUDE_FINAL | SYSTEMIC | Eczema specific treatment? | Non-eczema-specific anti-inflammatory topicals (eg topical steroids) | Emollients | Comments 
 # 
-
-## Steps:
-# 1. limit the data to AD cases only
-# 2. extract all unique variables (i.e. all codes within the dataset)
-# 3. run the count_pheno function across all codes (may need to alter function a little)
-# 4. run the get_n function across all codes (may need to alter function a little)
-# 5. edit tibble so columns look like those stated above
-# 6. output it as an excel spreadsheet
 
 ## Limit to AD cases only
 td_filt <- cbind(ids, treat_dat) %>%
