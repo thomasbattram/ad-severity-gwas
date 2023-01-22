@@ -1,9 +1,16 @@
-# ---
+# ---------------------------------------------------------------------------
 # Simplify GP scripts data
-# ---
+# ---------------------------------------------------------------------------
 
-## An inclusive set of people with eczema
-PHENO=data/ad-ids.txt
+## This script extracts all GP prescriptions for AD cases available in UK biobank,
+## puts them in a table, and removes duplicates. This data will then be passed to clinicians
+## so that they can pick out the relevant prescriptions to define severe (or moderate) AD cases
+
+## Probably best to run this script manually on a compute node and tmux to prevent timing out
+# interactive-job
+
+## manual args
+PHENO=data/ad-ids.txt ## An inclusive set of people with eczema
 GPSCRIPTS=data/ukb-pheno/gp_scripts.txt
 OUTPREFIX="data/gp_scripts_ecz"
 
