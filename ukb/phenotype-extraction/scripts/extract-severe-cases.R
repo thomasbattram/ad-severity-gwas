@@ -25,7 +25,7 @@ data_outfile <- args[9]
 ## manual args
 id_file <- "data/ukb-pheno/ids.txt"
 ad_id_file <- "data/ad-ids.txt"
-gp_scripts_id_file <- "data/ukb-pheno/gp_scripts_ids.txt" ## CHANGE ME
+gp_scripts_id_file <- "data/ukb-pheno/gp_scripts_ids.txt"
 phototherapy_file <- "data/ukb-pheno/phototherapy.txt"
 treatments_file <- "data/ukb-pheno/summ-sr-treatment-data-clean.tsv"
 icd10_file <- "data/ukb-pheno/icd10.txt"
@@ -33,10 +33,6 @@ icd9_file <- "data/ukb-pheno/icd9.txt"
 summary_outfile <- "data/severity-counts.xlsx" 
 data_outfile <- "data/case-pheno.tsv"
 gp_file <- "data/ukb-pheno/summ-gp-script-data-clean.tsv"
-
-
-# gp_record_file <- "data/ukb-pheno/gp-records.txt"
-# gp_record <- fread(gp_record_file)
 
 ## data
 ids <- fread(id_file)
@@ -277,8 +273,12 @@ def7_n <- get_definition_n(comb_count, sys, top5)
 ## Definition 8: systemics or potent topicals x2 (or super potent topicals)
 def8_n <- get_definition_n(comb_count, sys, top6)
 
+## Definition 9: def 8 or ICD9 or ICD10 or phototherapy
+def9_n <- get_definition_n(comb_count, sys, top6, other_treat = other_treat)
+
 def_list <- list(d1 = def1_n, d2 = def2_n, d3 = def3_n, d4 = def4_n, 
-				 d5 = def5_n, d6 = def6_n, d7 = def7_n, d8 = def8_n)
+				 d5 = def5_n, d6 = def6_n, d7 = def7_n, d8 = def8_n, 
+				 d9 = def9_n)
 
 ## Checking concordance between self-report and GP prescriptions
 gp_def1 <- paste0(sys, "_gp")
@@ -293,12 +293,13 @@ sum(count_def1$Azathioprine_sr == 1 & count_def1$Azathioprine_gp == 1) # 10
 sum(count_def1$Mycophenolate_sr == 1 & count_def1$Mycophenolate_gp == 1) # 13
 
 
-## QUICK AND MESSY WRITE UP
+## QUICK AND MESSY WRITE UP - will want to alter manually later
 wb <- createWorkbook()
 lapply(seq_along(def_list), function(x) {
-	nam <- names(def_list)[x]	
+	nam <- names(def_list)[x]
 	addWorksheet(wb, sheetName = nam)
-	writeData(wb, sheet = nam, x = def_list[[nam]],
+	def_tab <- def_list[[nam]]
+	writeData(wb, sheet = nam, x = def_tab,
 				   colNames = TRUE, rowNames = FALSE)
 })
 saveWorkbook(wb, summary_outfile, overwrite = TRUE)
