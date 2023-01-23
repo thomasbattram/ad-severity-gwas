@@ -18,10 +18,10 @@
 # OUT=$4
 
 ## manual args
-V2_LIST="AD_v2.list"
-CTV3_LIST="AD_ctv3.v2.uniq.list"
-GP_FILE="gp_clinical.txt"
-OUT="gp-diag-ad-case-eids.txt"
+V2_LIST="data/ukb-pheno/AD_v2.list" # list of read V2 codes
+CTV3_LIST="data/ukb-pheno/AD_ctv3.v2.uniq.list" # list of read V3 codes
+GP_FILE="data/ukb-pheno/gp_clinical.txt"
+OUT="data/gp-diag-ad-case-eids.txt"
 
 dos2unix ${V2_LIST}
 dos2unix ${CTV3_LIST}
