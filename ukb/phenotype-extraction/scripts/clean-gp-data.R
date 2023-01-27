@@ -3,6 +3,7 @@
 # ------------------------------------------------------------------------
 
 # srun --job-name "InteractiveJobTest" --nodes=1 --ntasks-per-node=1 --cpus-per-task=1 --time=1:00:00 --mem=32GB --partition=test --pty bash
+# srun --job-name "InteractiveJobTest" --account=smed001801 --partition=test --nodes=1 --ntasks-per-node=1 --cpus-per-task=1 --time=1:00:00 --mem=16GB --pty bash
 
 ## At the end we want a table like:
 # f.eid | corticosteroids | methotrexate | etc. | 
@@ -19,17 +20,19 @@ ids_file <- args[1]
 ad_ids_file <- args[2]
 sorted_gp_file <- args[3]
 gp_scripts_file <- args[4]
-gp_full_outfile <- args[5]
-gp_summ_outfile <- args[6]
-gp_tabs_outpre <- args[7]
-gp_meta_xlsx_file <- args[8]
-ori_gp_scripts_file <- args[9]
+gp_scripts_nodose_file <- args[5]
+gp_full_outfile <- args[6]
+gp_summ_outfile <- args[7]
+gp_tabs_outpre <- args[8]
+gp_meta_xlsx_file <- args[9]
+ori_gp_scripts_file <- args[10]
 
 ## manual args
 ids_file <- "data/ukb-pheno/ids.txt"
 ad_ids_file <- "data/ad-ids.txt"
 sorted_gp_file <- "data/ukb-pheno/gp_scripts_ad-sorted.xlsx"
 gp_scripts_file <- "data/ukb-pheno/gp_scripts_ecz_inclusive.txt"
+gp_scripts_nodose_file <- "data/gp_scripts_ecz_inclusive.nodose.txt"
 gp_full_outfile <- "data/ukb-pheno/full-gp-script-data-clean.RData"
 gp_summ_outfile <- "data/ukb-pheno/summ-gp-script-data-clean.tsv"
 gp_tabs_outpre <- "data/codelists/gp_"
@@ -41,8 +44,31 @@ ids <- fread(ids_file)
 ad_ids <- readLines(ad_ids_file)
 gp_dat <- read_xlsx(sorted_gp_file, sheet = "drug_first_20", guess_max = 25000)
 gp_scripts <- fread(gp_scripts_file)
+gp_scripts_nodose <- fread(gp_scripts_nodose_file, header = FALSE)
 ori_cleaned_gp_scripts <- fread(ori_gp_scripts_file)
 colnames(gp_scripts) <- c("f.eid", "issue_date", "read_2", "bnf_code", "dmd_code", "drug_name")
+
+# ------------------------------------------------------------------------
+# Clean gp scripts file to match real drug names to those given to Ravi
+# ------------------------------------------------------------------------
+
+colnames(gp_scripts_nodose) <- c("read_2", "bnf_code", "dmd_code", "drug_nodose")
+
+## Double checking it's in the same order
+all(gp_scripts_nodose$read_2 == gp_scripts$read_2)
+gp_scripts_nodose[which(gp_scripts_nodose$read_2 != gp_scripts$read_2),]
+gp_scripts[which(gp_scripts_nodose$read_2 != gp_scripts$read_2),]
+all(gp_scripts_nodose$bnf_code == gp_scripts$bnf_code)
+all(gp_scripts_nodose$dmd_code == gp_scripts$dmd_code)
+## we all good! 
+
+## bind gp scripts data together
+gp_scripts <- cbind(gp_scripts, gp_scripts_nodose[,c("drug_nodose")])
+
+## check the drug names are present in nodose too!
+all(gp_dat$drug %in% gp_scripts$drug_nodose)
+
+rm(gp_scripts_nodose)
 
 # ------------------------------------------------------------------------
 # Functions to get the codes and extract IDs from UKB data
@@ -181,42 +207,44 @@ nrow(gp_scripts) - nrow(gp_scripts_nom)
 # Extract numbers prescribed each drug and write it out
 # ------------------------------------------------------------------------
 
-codetypes <- c("read", "bnf", "dmd") # these should match those from the "get_codes" function
-names(codetypes) <- c("read_2", "bnf_code", "dmd_code") # these should match the columns from "gp_scripts"
 gp_meta_full <- lapply(drugs, function(drug) {
 	message(drug)
 	## Get drug data and codes
 	drug_dat <- gp_dat[which(gp_dat[[drug]] == 1),]
-	all_codes <- get_codes(drug_dat, gp_scripts_nom)
-	## Extract the number of participants matching each code for each codetype
-	outlist <- lapply(1:length(codetypes), function(x) {
-		ct <- codetypes[x]
-		gp_col <- names(codetypes)[x]
-		g_dat_col <- paste0(gp_col, "_concat")
-		codes <- all_codes[[ct]]
-		c_list <- lapply(codes, function(cod) {
-			extract_ids(gp_col, cod, ct, gp_scripts_nom, drug_dat)
-		})
-		c_tab <- map_dfr(c_list, "tab")
-		codetype_ids <- unique(unlist(map(c_list, "ids")))
-		## Make a row for each codetype to see whether there is much difference in cases per codetype
-		total_drug <- length(codetype_ids)
-		total_row <- tibble(codetype = toupper(ct), code = NA, drug = toupper(drug), n = total_drug)
-		clist <- list(full = c_tab, last_row = total_row, ids = codetype_ids)
-		return(clist)	
+	# all_codes <- get_codes(drug_dat, gp_scripts_nom)
+	all_drug_nams <- drug_dat$drug
+	stopifnot(all(all_drug_nams %in% gp_scripts_nom$drug_nodose))
+	gps <- gp_scripts_nom %>%
+		dplyr::filter(drug_nodose %in% all_drug_nams)
+	## Extract the number of participants prescribed each drug
+	outlist <- lapply(1:length(all_drug_nams), function(x) {
+		dr <- all_drug_nams[x]
+		gps_single <- gps %>%
+			dplyr::filter(drug_nodose == dr)
+		gps_ids <- unique(gps_single$f.eid)
+		out_all <- gps_single %>%
+			dplyr::select(-f.eid, -issue_date) %>%
+			distinct() %>%
+			mutate(drug = drug_name, n = length(gps_ids)) %>%
+			dplyr::select(drug, read_2, bnf = bnf_code, dmd = dmd_code, n)
+
+		out_list <- list(drug = out_all[, c("drug", "n")], 
+						 codes = out_all[, c("drug", "read_2", "bnf", "dmd")], 
+						 ids = gps_ids)
+		return(out_list)	
 	})
-	## Bind tables together, making sure that codetypes are at the bottom of the table
-	out_tab <- map(outlist, "full") %>%
-		bind_rows() %>%
-		bind_rows(map(outlist, "last_row")) %>%
-		bind_rows()
+	drug_tab <- map_dfr(outlist, "drug") %>%
+		distinct()
+	codes_tab <- map_dfr(outlist, "codes") %>%
+		distinct()
 	## Get total participants prescribed the drug of interest
 	outids <- unique(unlist(map(outlist, "ids")))
 	total_drug <- length(outids)
-	total_row <- tibble(codetype = NA, code = NA, drug = toupper(drug), n = total_drug)
-	out_tab <- bind_rows(out_tab, total_row)
+	total_row <- tibble(drug = toupper(drug), n = total_drug)
+	out_tab <- bind_rows(drug_tab, total_row)
+	## write out codes
 	temp_outfile <- paste0(gp_tabs_outpre, tolower(gsub(" ", "_", drug)), ".tsv")
-	write.table(out_tab, file = temp_outfile, col.names = T, row.names = F, quote = F, sep = "\t")
+	write.table(codes_tab, file = temp_outfile, col.names = T, row.names = F, quote = F, sep = "\t")
 	return(list(tab = out_tab, ids = outids))
 })
 names(gp_meta_full) <- drugs
@@ -235,20 +263,26 @@ gp_meta_sps2 <- lapply(po_drugs, function(drug) {
 	drug_dat <- map_dfr(all_drugs, function(dru) {
 		gp_dat[which(gp_dat[[dru]] == 1), ]	
 	})
-	all_codes <- get_codes(drug_dat, gp_scripts_nom)
-	test_gps <- gp_scripts_nom %>%
-		dplyr::filter(read_2 %in% all_codes$read | 
-					  bnf_code %in% all_codes$bnf |
-					  dmd_code %in% all_codes$dmd)
-	drug_nams <- drug_dat$drug
-	test_gps2 <- sort_drug_names(drug_nams, test_gps)
-	all_ids <- unique(test_gps2$f.eid)
+	all_drug_nams <- drug_dat$drug
+	stopifnot(all(all_drug_nams %in% gp_scripts_nom$drug_nodose))
+	gps <- gp_scripts_nom %>%
+		dplyr::filter(drug_nodose %in% all_drug_nams)
+	## Extract the number of participants prescribed each drug
+	all_ids <- unique(gps$f.eid)
 	## This next step takes ~3 mins (when ~18,000 IDs to sort through)
 	multi_gps <- map_dfr(seq_along(all_ids), function(x) {
+		## UNCOMMENT THE CODE BELOW IF YOU WANT TO TEST THE IDENTIFIED PEOPLE ARE CORRECT
 		id <- all_ids[x]
-		temp_gps <- test_gps2 %>%
-			dplyr::filter(f.eid == id, !duplicated(issue_date))
-		if (nrow(temp_gps) > 1) return(temp_gps)
+		temp_gps <- gps %>%
+			dplyr::filter(f.eid == id)
+		# print(temp_gps)
+		# Sys.sleep(5)
+		uniq_date <- unique(temp_gps$issue_date)
+		if (length(uniq_date) > 1) {
+			# message("\n\n\nYES\n\n\n")
+			return(temp_gps)
+		}
+		# message("\n\n\nNO\n\n\n")
 		return(NULL)
 	})
 	multi_ids <- unique(multi_gps$f.eid)
