@@ -19,8 +19,9 @@ phototherapy_file <- args[4]
 treatments_file <- args[5]
 icd10_file <- args[6]
 icd9_file <- args[7]
-count_outfile <- args[8]
+summary_outfile <- args[8]
 data_outfile <- args[9]
+gp_file <- args[10]
 
 ## manual args
 id_file <- "data/ukb-pheno/ids.txt"
