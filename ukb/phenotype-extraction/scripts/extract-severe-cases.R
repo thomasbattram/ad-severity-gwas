@@ -276,9 +276,12 @@ def8_n <- get_definition_n(comb_count, sys, top6)
 ## Definition 9: def 8 or ICD9 or ICD10 or phototherapy
 def9_n <- get_definition_n(comb_count, sys, top6, other_treat = other_treat)
 
+## Definition 10: def7 or ICD9 or ICD10 or phototherapy
+def10_n <- get_definition_n(comb_count, sys, top5, other_treat = other_treat)
+
 def_list <- list(d1 = def1_n, d2 = def2_n, d3 = def3_n, d4 = def4_n, 
 				 d5 = def5_n, d6 = def6_n, d7 = def7_n, d8 = def8_n, 
-				 d9 = def9_n)
+				 d9 = def9_n, d10 = def10_n)
 
 ## Checking concordance between self-report and GP prescriptions
 gp_def1 <- paste0(sys, "_gp")
