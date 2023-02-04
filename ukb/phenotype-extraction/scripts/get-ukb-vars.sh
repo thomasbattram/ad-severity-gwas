@@ -14,6 +14,9 @@ cd ${wd}
 ## get ids
 awk '{print $1}' ${rd}/data.45723.tab > ids.txt
 
+## get age and sex variables with IDs
+awk '{print $1, $11, $12, $3886}' ${rd}/data.45723.tab > age-sex.txt
+
 ## phototherapy - field ID = 41272
 ## Get columns 5580-5696
 cat ${rd}/data.45723.tab | awk ' BEGIN { first = 5580; last = 5696 }
