@@ -9,6 +9,9 @@
 ## Probably best to run this script manually on a compute node and tmux to prevent timing out
 # interactive-job
 
+wd="/user/work/tb13101/ad-severity-gwas/ukb/pheno-extraction"
+cd $wd
+
 ## manual args
 PHENO=data/ad-ids.txt ## An inclusive set of people with eczema
 GPSCRIPTS=data/ukb-pheno/gp_scripts.txt
