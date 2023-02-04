@@ -21,8 +21,8 @@
 	{
 		"partition": "mrcieu,mrcieu2,hmem",
 		"time": "5-00:00:00",
-		"tasks-per-node": "14",
-		"mem-per-cpu": "4000",
+		"ntask": "14",
+		"mem": "80G",
 		"output": "job-reports/{rule}.out", 
 		"error": "job-reports/{rule}.error"
 	}
