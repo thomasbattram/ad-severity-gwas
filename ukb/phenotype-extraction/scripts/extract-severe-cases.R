@@ -96,6 +96,25 @@ get_n <- function(count_dat, variables)
 	return(n_dat)
 }
 
+#' define individuals as severe
+#' 
+#' @param count_dat combined combination of counts for each variable of interest - comb_count
+#' @param variables vector of column names within count_dat that will be used to assign people as severe/not severe
+#' @param severe_only logical. keep only the ID and the severe column. Default = TRUE
+#' @return tibble with an ID column and a "severe" column indicating whether an individual has severe disease
+extract_severe_cases <- function(count_dat, variables, severe_only = TRUE)
+{
+	out <- count_dat %>%
+		dplyr::select(f.eid, all_of(variables)) %>%
+		mutate(severe = if_else(if_any(-f.eid, ~ . > 0), 1, 0))
+	
+	if (!severe_only) return(out)
+	
+	out %>%
+		dplyr::select(f.eid, severe) %>%
+		return()
+}
+
 #' get number of cases for a given definition of severe AD
 #' 
 #' @param count_dat combined combination of counts for each variable of interest - comb_count
@@ -108,9 +127,7 @@ get_definition_n <- function(count_dat, systemics, topicals = NULL, other_treat 
 	gp_def <- paste0(c(systemics, topicals), "_gp")
 	sr_def <- paste0(c(systemics, topicals), "_sr")
 	all_vars <- c(gp_def, sr_def, unlist(other_treat, use.names = FALSE))
-	count_def <- count_dat %>%
-		dplyr::select(f.eid, all_of(all_vars)) %>%
-		mutate(severe = if_else(if_any(-f.eid, ~ . > 0), 1, 0))
+	count_def <- extract_severe_cases(count_dat, all_vars, severe_only = FALSE)
 	def_n <- get_n(count_def, all_vars)
 	no_cases_tab <- dplyr::filter(def_n, !grepl("cases", variable))
 	## Remove gp and sr from vars
@@ -308,5 +325,17 @@ lapply(seq_along(def_list), function(x) {
 })
 saveWorkbook(wb, summary_outfile, overwrite = TRUE)
 
+## Write out the data for analyses
+severe_list <- lapply(seq_along(def_list), function(x) {
+	dat <- def_list[[x]] %>%
+		mutate(new_var = case_when(`Data type` == "GP prescription" ~ paste0(variable, "_gp"), 
+								   `Data type` == "Self-report" ~ paste0(variable, "_sr"), 
+								   is.na(`Data type`) ~ variable))
+	vars <- dat$new_var[!(dat$new_var %in% c("unique_cases", "non_unique_cases"))]
+	out <- extract_severe_cases(comb_count, vars, severe_only = TRUE)
+	colnames(out)[colnames(out) == "severe"] <- paste0("d", x)
+	return(out)
+})
 
-
+severe_out_tab <- reduce(severe_list, left_join)
+write.table(severe_out_tab, file = data_outfile, col.names = T, row.names = F, quote = F, sep = "\t")
