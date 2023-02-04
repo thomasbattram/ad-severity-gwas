@@ -13,8 +13,10 @@ ukb_gendir <- args[1]
 outfile <- args[2]
 
 ## manual args
-# ukb_gendir <- "/mnt/storage/private/mrcieu/data/ukbiobank/genetic/variants/arrays/imputed/released/2018-09-18/data/derived"
+# ukb_gendir <- "/mnt/storage/private/mrcieu/data/ukbiobank/genetic/variants/arrays/imputed/released/2018-09-18/data"
 # outfile <- "data/ukb-exclusions.tsv"
+
+ukb_gendir <- file.path(ukb_gendir, "derived")
 
 ## exclusion files
 files <- c(non_white_british = "ancestry/data.non_white_british.qctools.txt", 
