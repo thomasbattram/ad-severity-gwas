@@ -1,0 +1,111 @@
+#!/bin/python
+
+import os, sys
+
+## Directories being used
+LOCAL_DIR = os.getcwd()
+SCR_DIR = "" # scratch directory
+UKB_GEN_DIR = "" # UK biobank genetic data directory
+UKB_PIPELINE_DIR = "" # UK biobank GWAS pipeline directory
+
+## Phenotypes running GWAS on
+PHENO = {
+  "severe": "d4",
+  "mod_severe": "d9"
+}
+
+rule all:
+    input:
+        expand(SCR_DIR + "/" + "results/{pheno}-out.txt.gz", pheno = list(PHENO.keys())),
+        expand(SCR_DIR + "/" + "results/{pheno}-imputed.txt.gz", pheno = list(PHENO.keys())),
+        expand(SCR_DIR + "/" + "data/{pheno}-ad-phenofile.txt", pheno = list(PHENO.keys()))
+
+## Extract exclusions
+rule extract_exclusions:
+    input:
+        script = LOCAL_DIR + "/" + "scripts/extract-exclusions.R", 
+        ukb_dir = UKB_GEN_DIR, ## MAY NEED TO ADD THINGS TO!!
+    output:
+        "data/ukb-exclusions.tsv",
+    shell:
+        "Rscript {input.script} '{input.ukb_dir}' '{output}'"
+
+## Prep phenotype data
+rule prep_pheno:
+    input:
+        script = LOCAL_DIR + "/" + "scripts/prep-phenofile.R", 
+        severe_file = SCR_DIR + "/" + "../phenotype-extraction/data/case-pheno.tsv",
+        linker_file = SCR_DIR + "/" + "data/linker.csv",
+        exclusions_file = SCR_DIR + "/" + "data/ukb-exclusions.tsv",
+    output:
+        SCR_DIR + "/" + "data/{pheno}-ad-phenofile.txt",
+    params: 
+        severe_def = PHENO['{pheno}'], # columns from the severe_file to use as phenotypes
+        exc = "sex_mismatch sex_chr_aneuploidy het_miss_outliers", ## ADD IN EXCLUSIONS FROM LIST 
+    shell:
+        """echo $HOSTNAME; Rscript {input.script} \
+                                        '{input.severe_file}' \
+                                        '{params.severe_def}' \
+                                        '{input.linker_file}' \
+                                        '{input.exclusions_file}' \
+                                        '{params.exc}' \
+                                        '{output}' """
+
+## Prep phenotype data
+rule prep_covar:
+    input:
+        script = LOCAL_DIR + "/" + "scripts/prep-covarfile.R", 
+        pheno_file = SCR_DIR + "/" + "data/" + list(PHENO.keys())[0] + "-ad-phenofile.txt",
+        pc_file = UKB_GEN_DIR + "/" + "derived/principal_components/data.pca1-10.plink.txt",
+        age_file = "../phenotype-extraction/data/ukb-pheno/age-sex.txt",
+        linker_file = SCR_DIR + "/" + "data/linker.csv",
+    output:
+        SCR_DIR + "/" + "data/severe-ad-covarfile.txt"
+    shell:
+        """echo $HOSTNAME; Rscript {input.script} \
+                                        '{input.pheno_file}' \
+                                        '{input.pc_file}' \
+                                        '{input.age_file}' \
+                                        '{input.linker_file}' \
+                                        '{output}' """
+
+## Run GWAS
+rule gwas:
+    input:
+        script = LOCAL_DIR + "/" + "scripts/bolt-script.sh", 
+        ukb_gen_dir = UKB_GEN_DIR,
+        ukb_pipeline_dir = UKB_PIPELINE_DIR,
+        pheno_file = SCR_DIR + "/" + "data/{pheno}-ad-phenofile.txt",
+        covar_file = SCR_DIR + "/" + "data/severe-ad-covarfile.txt",
+    output:
+        outfile = SCR_DIR + "/" + "results/{pheno}-out.txt.gz",
+        bgen = SCR_DIR + "/" + "results/{pheno}-imputed.txt.gz",
+    shell:
+        """bash {input.script} \
+                    '{input.ukb_gen_dir}'\
+                    '{input.ukb_pipeline_dir}'\
+                    '{input.pheno_file}'\
+                    '{input.covar_file}'\
+                    '{output.bgen}'\
+                    '{output.outfile}' """
+
+
+## Generate report                                        
+# rule cse_report:
+#     input:
+#         man = SCR_DIR + "/" + "results/celldmc-tca-manhattans.png",
+#         qq = SCR_DIR + "/" + "results/celldmc-tca-qqs.png",
+#         summ = SCR_DIR + "/" + "results/summary-of-results.RData",
+#         workflow = LOCAL_DIR + "/" + "report/cell-spec-workflow.drawio.png",
+#         report = LOCAL_DIR + "/" + "report/cs-ewas-report.Rmd"
+#     output:
+#         LOCAL_DIR + "/" + "report/cs-ewas-report.html"
+#     shell:
+#         """echo $HOSTNAME; \
+#                 Rscript -e \"rmarkdown::render('{input.report}',
+#                                                output_format='all', 
+#                                                params = list(man = '{input.man}', 
+#                                                              qq = '{input.qq}', 
+#                                                              summ = '{input.summ}', 
+#                                                              workflow = '{input.workflow}'))\" """
+
