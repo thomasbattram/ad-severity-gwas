@@ -22,10 +22,10 @@ cd $SLURM_SUBMIT_DIR
 ## manual args
 UKB_GEN_DIR="" # UK biobank genetic data directory
 UKB_PIPELINE_DIR="" # UK biobank GWAS pipeline directory
-PHENO_FILE="data/severe-ad-phenofile.txt"
+PHENO_FILE="data/mod_severe-ad-phenofile.txt"
 COVAR_FILE="data/severe-ad-covarfile.txt"
-OUTFILE_BGEN="results/severe-imputed.txt.gz"
-OUTFILE="results/severe-out.txt.gz"
+OUTFILE_BGEN="results/mod_severe-imputed.txt.gz"
+OUTFILE="results/mod_severe-out.txt.gz"
 
 ${UKB_PIPELINE_DIR}/scripts/software/BOLT-LMM_v2.3.2/bolt \
     --bfile=${UKB_PIPELINE_DIR}/data/bolt_bfile/grm6_european_filtered_ieu \
