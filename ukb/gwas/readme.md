@@ -16,6 +16,7 @@ snakemake -rp \
 -j 1 \
 --cluster-config bc4-cluster.json \
 --cluster "sbatch \
+        --account=smed001801
         --job-name={cluster.name} \
         --partition={cluster.partition} \
         --nodes={cluster.nodes} \
@@ -25,6 +26,8 @@ snakemake -rp \
         --mem={cluster.mem} \
         --output={cluster.output} \
         --error={cluster.error}"
+
+## snakemake -rp --cores 1
 ```
 
 5. Deactivate the tmux session (CTRL+b + d)
@@ -38,3 +41,23 @@ The scripts run by the snakemake workflow are below:
 2. [prep-phenofile.R](scripts/prep-phenofile.R): prepare the phenotype data for bolt-LMM
 3. [prep-covarfile.R](scripts/prep-covarfile.R): prepare the covariate data for bolt-LMM
 4. [bolt-script.sh](scripts/bolt-script.sh): run the gwas in ukb using bolt-LMM
+
+
+To run the plink analyses, use the code below:
+``` bash
+sbatch plink-script-sub.sh "/user/work/tb13101/ad-severity-gwas/ukb/gwas" \
+                                     "/mnt/storage/private/mrcieu/data/ukbiobank/genetic/variants/arrays/imputed/released/2018-09-18/data/dosage_bgen" \
+                                     "data/severe-ad-phenofile.txt" \
+                                     "data/severe-ad-covarfile.txt" \
+                                     "results/gwas-tmp/severe-gwas-out"
+```
+
+
+To run a test of chromosome 1, use the code below:
+``` bash
+sbatch plink-script-sub-chr1-only.sh "/user/work/tb13101/ad-severity-gwas/ukb/gwas" \
+                                     "/mnt/storage/private/mrcieu/data/ukbiobank/genetic/variants/arrays/imputed/released/2018-09-18/data/dosage_bgen" \
+                                     "data/severe-ad-phenofile.txt" \
+                                     "data/severe-ad-covarfile.txt" \
+                                     "results/gwas-temp/severe-gwas-out"
+```
