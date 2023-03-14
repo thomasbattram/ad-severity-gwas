@@ -34,7 +34,7 @@ ${UKB_PIPELINE_DIR}/scripts/software/BOLT-LMM_v2.3.2/bolt \
     --bgenFile=${UKB_GEN_DIR}/dosage_bgen/data.chrX.bgen \
     --sampleFile=${UKB_GEN_DIR}/dosage_bgen/data.chr1-22.sample \
     --geneticMapFile=${UKB_PIPELINE_DIR}/scripts/software/BOLT-LMM_v2.3.2/tables/genetic_map_hg19_withX.txt.gz \
-    --bgenMinMAF=0.001 \
+    --bgenMinMAF=0.01 \
     --phenoFile=${PHENO_FILE} \
     --phenoCol=severe \
     --covarFile=${COVAR_FILE} \
