@@ -38,6 +38,7 @@ rule prep_pheno:
         severe_file = SCR_DIR + "/" + "../phenotype-extraction/data/case-pheno.tsv",
         linker_file = SCR_DIR + "/" + "data/linker.csv",
         exclusions_file = SCR_DIR + "/" + "data/ukb-exclusions.tsv",
+        withdraw = SCR_DIR + "/" + "data/w15147_20210809.csv"
     output:
         SCR_DIR + "/" + "data/{pheno}-ad-phenofile.txt",
         # expand(SCR_DIR + "/" + "data/{pheno}-ad-phenofile.txt", pheno = list(PHENO.keys()))
@@ -52,6 +53,7 @@ rule prep_pheno:
                                         '{input.linker_file}' \
                                         '{input.exclusions_file}' \
                                         '{params.exc}' \
+                                        '{input.withdraw}' \
                                         '{output}' \
                                         '{params.plink}' """
 
