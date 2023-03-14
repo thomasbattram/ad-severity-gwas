@@ -16,17 +16,18 @@ PHENO = {
 
 rule all:
     input:
-        expand(SCR_DIR + "/" + "results/{pheno}-out.txt.gz", pheno = list(PHENO.keys())),
-        expand(SCR_DIR + "/" + "results/{pheno}-imputed.txt.gz", pheno = list(PHENO.keys())),
-        expand(SCR_DIR + "/" + "data/{pheno}-ad-phenofile.txt", pheno = list(PHENO.keys()))
+        # expand(SCR_DIR + "/" + "results/{pheno}-out.txt.gz", pheno = list(PHENO.keys())),
+        # expand(SCR_DIR + "/" + "results/{pheno}-imputed.txt.gz", pheno = list(PHENO.keys())),
+        expand(SCR_DIR + "/" + "data/{pheno}-ad-phenofile.txt", pheno = list(PHENO.keys())),
+        SCR_DIR + "/" + "data/severe-ad-covarfile.txt"
 
 ## Extract exclusions
 rule extract_exclusions:
     input:
         script = LOCAL_DIR + "/" + "scripts/extract-exclusions.R", 
-        ukb_dir = UKB_GEN_DIR, ## MAY NEED TO ADD THINGS TO!!
+        ukb_dir = UKB_GEN_DIR, 
     output:
-        "data/ukb-exclusions.tsv",
+        SCR_DIR + "/" + "data/ukb-exclusions.tsv",
     shell:
         "Rscript {input.script} '{input.ukb_dir}' '{output}'"
 
@@ -39,9 +40,11 @@ rule prep_pheno:
         exclusions_file = SCR_DIR + "/" + "data/ukb-exclusions.tsv",
     output:
         SCR_DIR + "/" + "data/{pheno}-ad-phenofile.txt",
+        # expand(SCR_DIR + "/" + "data/{pheno}-ad-phenofile.txt", pheno = list(PHENO.keys()))
     params: 
-        severe_def = PHENO['{pheno}'], # columns from the severe_file to use as phenotypes
-        exc = "sex_mismatch sex_chr_aneuploidy het_miss_outliers", ## ADD IN EXCLUSIONS FROM LIST 
+        severe_def = lambda wildcards: PHENO[wildcards.pheno], # columns from the severe_file to use as phenotypes
+        exc = "sex_mismatch sex_chr_aneuploidy het_miss_outliers non_europeans", ## ADD IN EXCLUSIONS FROM LIST
+        plink = "FALSE",
     shell:
         """echo $HOSTNAME; Rscript {input.script} \
                                         '{input.severe_file}' \
@@ -49,7 +52,8 @@ rule prep_pheno:
                                         '{input.linker_file}' \
                                         '{input.exclusions_file}' \
                                         '{params.exc}' \
-                                        '{output}' """
+                                        '{output}' \
+                                        '{params.plink}' """
 
 ## Prep phenotype data
 rule prep_covar:
@@ -57,37 +61,40 @@ rule prep_covar:
         script = LOCAL_DIR + "/" + "scripts/prep-covarfile.R", 
         pheno_file = SCR_DIR + "/" + "data/" + list(PHENO.keys())[0] + "-ad-phenofile.txt",
         pc_file = UKB_GEN_DIR + "/" + "derived/principal_components/data.pca1-10.plink.txt",
-        age_file = "../phenotype-extraction/data/ukb-pheno/age-sex.txt",
+        age_file = SCR_DIR + "/" + "../phenotype-extraction/data/ukb-pheno/age-sex.txt",
         linker_file = SCR_DIR + "/" + "data/linker.csv",
     output:
         SCR_DIR + "/" + "data/severe-ad-covarfile.txt"
+    params: 
+        plink = "FALSE",
     shell:
         """echo $HOSTNAME; Rscript {input.script} \
                                         '{input.pheno_file}' \
                                         '{input.pc_file}' \
                                         '{input.age_file}' \
                                         '{input.linker_file}' \
-                                        '{output}' """
+                                        '{output}' \
+                                        '{params.plink}' """
 
 ## Run GWAS
-rule gwas:
-    input:
-        script = LOCAL_DIR + "/" + "scripts/bolt-script.sh", 
-        ukb_gen_dir = UKB_GEN_DIR,
-        ukb_pipeline_dir = UKB_PIPELINE_DIR,
-        pheno_file = SCR_DIR + "/" + "data/{pheno}-ad-phenofile.txt",
-        covar_file = SCR_DIR + "/" + "data/severe-ad-covarfile.txt",
-    output:
-        outfile = SCR_DIR + "/" + "results/{pheno}-out.txt.gz",
-        bgen = SCR_DIR + "/" + "results/{pheno}-imputed.txt.gz",
-    shell:
-        """bash {input.script} \
-                    '{input.ukb_gen_dir}'\
-                    '{input.ukb_pipeline_dir}'\
-                    '{input.pheno_file}'\
-                    '{input.covar_file}'\
-                    '{output.bgen}'\
-                    '{output.outfile}' """
+# rule gwas:
+#     input:
+#         script = LOCAL_DIR + "/" + "scripts/bolt-script.sh", 
+#         ukb_gen_dir = UKB_GEN_DIR,
+#         ukb_pipeline_dir = UKB_PIPELINE_DIR,
+#         pheno_file = SCR_DIR + "/" + "data/{pheno}-ad-phenofile.txt",
+#         covar_file = SCR_DIR + "/" + "data/severe-ad-covarfile.txt",
+#     output:
+#         outfile = SCR_DIR + "/" + "results/{pheno}-out.txt.gz",
+#         bgen = SCR_DIR + "/" + "results/{pheno}-imputed.txt.gz",
+#     shell:
+#         """bash {input.script} \
+#                     '{input.ukb_gen_dir}'\
+#                     '{input.ukb_pipeline_dir}'\
+#                     '{input.pheno_file}'\
+#                     '{input.covar_file}'\
+#                     '{output.bgen}'\
+#                     '{output.outfile}' """
 
 
 ## Generate report                                        
