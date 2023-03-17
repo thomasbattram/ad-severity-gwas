@@ -34,6 +34,7 @@ icd9_file <- "data/ukb-pheno/icd9.txt"
 summary_outfile <- "data/severity-counts.xlsx" 
 data_outfile <- "data/case-pheno.tsv"
 gp_file <- "data/ukb-pheno/summ-gp-script-data-clean.tsv"
+full_count_outfile <- "data/full-count-out.tsv"
 
 ## data
 ids <- fread(id_file)
@@ -256,6 +257,9 @@ comb_count <- list(pt_count, sr_treat_count, gp_treat_count, icd10_count, icd9_c
 	reduce(left_join) %>%
 	dplyr::filter(f.eid %in% gp_ids, f.eid %in% ad_ids)
 	# mutate(severe = if_else(if_any(-f.eid, ~ . > 0), 1, 0)) # asking if any are present then == 1, otherwise 0
+
+## Write out full count file
+write.table(comb_count, file = full_count_outfile, col.names = T, row.names = F, quote = F, sep = "\t")
 
 ## Check numbers for each variety of severity definition
 sys <- c("Methotrexate", "Ciclosporin", "Azathioprine", "Mycophenolate")
